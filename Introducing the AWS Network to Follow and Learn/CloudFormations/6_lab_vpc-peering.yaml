@@ -1,0 +1,194 @@
+Parameters:
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instances. Linked to AWS Parameter
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+
+Resources:
+  VPC01:
+    Type: AWS::EC2::VPC
+    Properties:
+     CidrBlock: 10.41.0.0/16
+     EnableDnsSupport: true
+     EnableDnsHostnames: true
+     Tags:
+      - Key: Name
+        Value: VPCPeering-VPC1
+  InternetGateway0101:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: VPCPeering-IGW1
+  InternetGatewayAttachment0101:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway0101
+      VpcId: !Ref VPC01
+
+  VPC02:
+    Type: AWS::EC2::VPC
+    Properties:
+     CidrBlock: 10.42.0.0/16
+     EnableDnsSupport: true
+     EnableDnsHostnames: true
+     Tags:
+      - Key: Name
+        Value: VPCPeering-VPC2
+  InternetGateway0102:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: VPCPeering-IGW2
+  InternetGatewayAttachment0102:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway0102
+      VpcId: !Ref VPC02
+
+  PublicRouteTable0101:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC01
+      Tags:
+        - Key: Name
+          Value: VPCPeering-RT1
+  DefaultPublicRoute0101:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment0101
+    Properties:
+      RouteTableId: !Ref PublicRouteTable0101
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway0101
+  Subnet0101:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC01
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      MapPublicIpOnLaunch: true
+      CidrBlock: 10.41.1.0/24
+      Tags:
+        - Key: Name
+          Value: VPCPeering-VPC1-Subnet1
+  Subnet0101RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable0101
+      SubnetId: !Ref Subnet0101
+
+  PublicRouteTable0102:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC02
+      Tags:
+        - Key: Name
+          Value: VPCPeering-RT2
+  DefaultPublicRoute0102:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment0102
+    Properties:
+      RouteTableId: !Ref PublicRouteTable0102
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway0102
+  Subnet0102:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC02
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      MapPublicIpOnLaunch: true
+      CidrBlock: 10.42.1.0/24
+      Tags:
+        - Key: Name
+          Value: VPCPeering-VPC2-Subnet1
+  Subnet0102RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable0102
+      SubnetId: !Ref Subnet0102
+
+  Instance0101:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-0e92198843e11ccee
+      InstanceType: t2.micro
+      KeyName: !Ref KeyName
+      Tags:
+        - Key: Name
+          Value: VPC1-EC2
+      NetworkInterfaces:
+        - DeviceIndex: 0
+          SubnetId: !Ref Subnet0101
+          GroupSet:
+          - !Ref SG0101
+          AssociatePublicIpAddress: true
+          PrivateIpAddress: 10.41.1.100
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          hostnamectl --static set-hostname VPC1-EC2
+          yum -y install tcpdump httpd
+          service httpd start
+          chkconfig httpd on
+          echo "<html><h1>VPC Peering Lab - VPC1 Web Server</h1></html>" > /var/www/html/index.html
+
+  Instance0102:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-0e92198843e11ccee
+      InstanceType: t2.micro
+      KeyName: !Ref KeyName
+      Tags:
+        - Key: Name
+          Value: VPC2-EC2
+      NetworkInterfaces:
+        - DeviceIndex: 0
+          SubnetId: !Ref Subnet0102
+          GroupSet:
+          - !Ref SG0102
+          AssociatePublicIpAddress: true
+          PrivateIpAddress: 10.42.1.100
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          hostnamectl --static set-hostname VPC2-EC2
+          yum -y install tcpdump httpd
+          service httpd start
+          chkconfig httpd on
+          echo "<html><h1>VPC Peering Lab - VPC2 Web Server</h1></html>" > /var/www/html/index.html
+
+  SG0101:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPC01
+      GroupDescription: VPC1-EC2-SecurityGroup
+      Tags:
+      - Key : Name
+        Value : VPC1-EC2-SecurityGroup
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '22'
+        ToPort: '22'
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: icmp
+        FromPort: -1
+        ToPort: -1
+        CidrIp: 0.0.0.0/0
+
+  SG0102:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPC02
+      GroupDescription: VPC2-EC2-SecurityGroup
+      Tags:
+      - Key : Name
+        Value : VPC2-EC2-SecurityGroup
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '22'
+        ToPort: '22'
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: icmp
+        FromPort: -1
+        ToPort: -1
+        CidrIp: 0.0.0.0/0
