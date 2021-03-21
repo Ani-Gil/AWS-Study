@@ -1,13 +1,13 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Make a VPC 2
+Description: Make a VPC 1
 
 Resources:
   ToturialVPC:
-    Type: AWS::EC2::VPC
+    Type:
     Properties:
       CidrBlock: 172.0.0.0/16
       EnableDnsHostnames: true
-  
+      
   InternetGateway:
     Type: AWS::EC2::InternetGateway
 
@@ -25,8 +25,8 @@ Resources:
       AvailabilityZone: !Select
         - '0'
         - !GetAZs ''
-      
-  PrivateSubnet01:
+
+  PrivateSubent01:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref ToturialVPC
@@ -35,26 +35,8 @@ Resources:
         - '0'
         - !GetAZs ''
 
-  PublicSubnet02:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref ToturialVPC
-      CidrBlock: 172.0.2.0/24
-      AvailabilityZone: !Select
-        - '1'
-        - !GetAZs ''
-
-  PrivateSubnet02:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref ToturialVPC
-      CidrBlock: 172.0.3.0/24
-      AvailabilityZone: !Select
-        - '1'
-        - !GetAZs ''
-  
   PublicRouteTable:
-    Type: AWS::EC2::RouteTable
+    Type: AWS::EC2::PublicRouteTable
     Properties:
       VpcId: !Ref ToturialVPC
 
@@ -71,12 +53,6 @@ Resources:
       SubnetId: !Ref PublicSubnet01
       RouteTableId: !Ref PublicRouteTable
 
-  PublicSubnetRouteTableAssociation2:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref PublicSubnet02
-      RouteTableId: !Ref PublicRouteTable
-
   PrivateRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -86,12 +62,6 @@ Resources:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref PrivateSubnet01
-      RouteTableId: !Ref PrivateRouteTable
-  
-  PrivateSubnetRouteTableAssociation2:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref PrivateSubnet02
       RouteTableId: !Ref PrivateRouteTable
 
 Outputs:
@@ -103,8 +73,4 @@ Outputs:
     Value: !GetAtt
       - PublicSubnet01
       - AvailabilityZone
-  AZ2:
-    Description: Availability Zone 2
-    Value: !GetAtt
-      - PublicSubnet02
-      - AvailabilityZone
+  
