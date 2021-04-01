@@ -1,0 +1,21 @@
+version: 0.0
+os: linux
+files:
+  - source: /
+  destination: /var/www/html
+Permissions:
+  - object: /var/www/html
+  pattern: "*.html"
+  owner: root
+  group: root
+  mode: 755
+hooks:
+  ApplicationStop:
+    - location : scripts/deregister_from_elb.sh
+  BeforInstall:
+    - location : scripts/install_dependencies.sh
+  ApplicationStart:
+    - location : scripts/start_httpd.sh
+  ValidateStart:
+    - location : scripts/test_sit.sh
+    - location : scripts/register_with_elb.sh
